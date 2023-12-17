@@ -22,6 +22,12 @@ Vector2f GetTextSize(Text text) {
     return Vector2f(r.width, r.height);
 }
 
+int respawnTimer = 0;
+const int respawnCooldown = 600;
+
+int respawnTimer2 = 0;
+const int respawnCooldown2 = 600;
+
 void playerMove(PhysicsSprite& player, int elapsedMS, int sizex, int sizey) {
     Vector2f newPos(player.getCenter());
     if (Keyboard::isKeyPressed(Keyboard::Right) && ((newPos.x + (sizex / 2)) <= 1110)) {
@@ -58,35 +64,101 @@ int main()
 
     PhysicsSprite& player = *new PhysicsSprite();
     Texture plTex;
-    LoadTex(plTex, "images/player.png");
+    LoadTex(plTex, "images/Heart.png");
     player.setTexture(plTex);
     Vector2f plSize = player.getSize();
     player.setCenter(Vector2f(630, 800 - (plSize.y / 2)));
     world.AddPhysicsBody(player);
     int shoottimer(0);
-
-    Texture ppTex;
-    LoadTex(ppTex, "images/player.png");
-    PhysicsShapeList<PhysicsSprite> plprojectiles;
     
 
+    PhysicsCircle beat;
+    beat.setSize(Vector2f(150, 150));
+    beat.setFillColor(Color(255, 150, 150, 255));
+
     PhysicsSprite enemy1;
+    bool e1alive(true);
     Texture en1Tex;
-    LoadTex(en1Tex, "images/player.png");
+    LoadTex(en1Tex, "images/Spade.png");
     enemy1.setTexture(en1Tex);
     Vector2f en1Size = enemy1.getSize();
-    enemy1.setCenter(Vector2f(630, 300 - en1Size.y));
+    enemy1.setCenter(Vector2f(530, 300 - en1Size.y));
     world.AddPhysicsBody(enemy1);
-    enemy1.onCollision = [&enemy1, &world, &player, &lives, &gamestate](PhysicsBodyCollisionResult result) {
+    enemy1.onCollision = [&enemy1, &world, &player, &beat, &lives, &score, &gamestate, &e1alive](PhysicsBodyCollisionResult result) {
         if (result.object2 == player) {
             gamestate = 2;
             lives -= 1;
         }
+
+        if (result.object2 == beat) {
+            score = score + 5;
+            world.RemovePhysicsBody(enemy1);
+            e1alive = false;
+        }
         };
+    if (!e1alive) {
+        // Duplicate enemy1
+        PhysicsSprite newEnemy;
+        newEnemy.setTexture(en1Tex);
+        newEnemy.setCenter(Vector2f(530, 300 - en1Size.y));
+        newEnemy.onCollision = [&newEnemy, &world, &player, &beat, &lives, &score, &gamestate, &e1alive](PhysicsBodyCollisionResult result) {
+            if (result.object2 == player) {
+                gamestate = 2;
+                lives -= 1;
+            }
 
-    // Enemies
-    PhysicsShapeList<PhysicsCircle> plbullets;
+            if (result.object2 == beat) {
+                score = score + 5;
+                world.RemovePhysicsBody(newEnemy);
+                e1alive = false;
+            }
+            };
 
+        world.AddPhysicsBody(newEnemy);
+        e1alive = true;
+    }
+
+    PhysicsSprite enemy2;
+    bool e2alive(true);
+    Texture en2Tex;
+    LoadTex(en2Tex, "images/Club.png");
+    enemy2.setTexture(en2Tex);
+    Vector2f en2Size = enemy2.getSize();
+    enemy2.setCenter(Vector2f(730, 300 - en1Size.y));
+    world.AddPhysicsBody(enemy2);
+    enemy2.onCollision = [&enemy2, &world, &player, &beat, &lives, &score, &gamestate, &e2alive](PhysicsBodyCollisionResult result) {
+        if (result.object2 == player) {
+            gamestate = 2;
+            lives -= 1;
+        }
+
+        if (result.object2 == beat) {
+            score = score + 5;
+            world.RemovePhysicsBody(enemy2);
+            e2alive = false;
+        }
+        };
+    if (!e2alive) {
+        // Duplicate enemy2
+        PhysicsSprite newEnemy2;
+        newEnemy2.setTexture(en2Tex);
+        newEnemy2.setCenter(Vector2f(530, 300 - en1Size.y));
+        newEnemy2.onCollision = [&newEnemy2, &world, &player, &beat, &lives, &score, &gamestate, &e2alive](PhysicsBodyCollisionResult result) {
+            if (result.object2 == player) {
+                gamestate = 2;
+                lives -= 1;
+            }
+
+            if (result.object2 == beat) {
+                score = score + 5;
+                world.RemovePhysicsBody(newEnemy2);
+                e2alive = false;
+            }
+            };
+
+        world.AddPhysicsBody(newEnemy2);
+        e2alive = true;
+    }
     // Playbounds
     PhysicsRectangle left;
     left.setSize(Vector2f(10,1100));
@@ -180,21 +252,49 @@ int main()
                 if (enemy1.getVelocity().x != 1 && enemy1.getVelocity().y != 0.5) {
                     enemy1.setVelocity(Vector2f(1, 0.5));
                 }
+                if (!e1alive) {
+                    respawnTimer += deltaMS;
+                    if (respawnTimer >= respawnCooldown) {
+                        // Respawn enemy1
+                        enemy1.setCenter(Vector2f(730, 300 - en1Size.y));
+                        world.AddPhysicsBody(enemy1);
+                        e1alive = true;
+                        respawnTimer = 0;
+                    }
+                }
+                if (enemy2.getVelocity().x != -1 && enemy2.getVelocity().y != 0.5) {
+                    enemy2.setVelocity(Vector2f(-1, 0.5));
+                }
+                if (!e2alive) {
+                    respawnTimer2 += deltaMS;
+                    if (respawnTimer2 >= respawnCooldown2) {
+                        // Respawn enemy2
+                        enemy2.setCenter(Vector2f(530, 300 - en2Size.y));
+                        world.AddPhysicsBody(enemy2);
+                        e2alive = true;
+                        respawnTimer = 0;
+                    }
+                }
+                bool beatif(false);
                 player.setVelocity(Vector2f(0, 0));
+                shoottimer = 0;
+                int beatcooldown(0);
                 if (shoottimer < 3) {
                     shoottimer++;
                 }
-                if (Keyboard::isKeyPressed(Keyboard::Space) && shoottimer >= 3) {
-
-                    shoottimer = 0;
-                    if (shoottimer > 3) {
-                        PhysicsCircle& plbullet = plbullets.Create();
-                        plbullet.setSize(Vector2f(5, 5));
-                        plbullet.setCenter(player.getCenter());
-                        plbullet.setVelocity(Vector2f(0,1));
-                        world.AddPhysicsBody(plbullet);
-                    }
-
+                if (Keyboard::isKeyPressed(Keyboard::Space) && beatcooldown == 0) {            
+                      beatif = true;
+                      beatcooldown == 120;
+                      beat.setCenter(player.getCenter());
+                      world.AddPhysicsBody(beat);
+                      
+                }
+                if (beatcooldown == 1) {
+                    world.RemovePhysicsBody(beat);
+                }
+                if (beatcooldown > 0) {
+                    beatcooldown--;
+                    beatif = false;
                 }
                 
                 if (lives == 0) {
@@ -202,18 +302,24 @@ int main()
                 }
 
                 window.clear();
-                plbullets.DoRemovals();
-                for (PhysicsCircle& plbullet : plbullets) {
-                    window.draw((PhysicsCircle&)plbullet);
+                
+                if (beatif) {
+                    window.draw(beat);
                 }
+                
                 playerMove(player, deltaMS, plSize.x, plSize.y);
                 window.draw(player);
-                window.draw(enemy1);
+                if (e1alive) {
+                    window.draw(enemy1);
+                }
+                if (e2alive) {
+                    window.draw(enemy2);
+                }
                 window.draw(left);
                 window.draw(right);
                 window.draw(top);
                 window.draw(bottom);
-                
+
                 Text liveText;
                 liveText.setString(to_string(lives));
                 liveText.setFont(gamefont);
